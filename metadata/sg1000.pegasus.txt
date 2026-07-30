@@ -1,0 +1,4 @@
+collection: Sega SG-1000
+shortname: sg1000
+extension: sg, sc, bin, zip, 7z
+launch: /usr/local/bin/launch-retroarch /usr/lib/aarch64-linux-gnu/libretro/genesis_plus_gx_libretro.so "{file.path}"

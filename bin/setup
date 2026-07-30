@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+
+command -v docker >/dev/null || {
+  printf 'Fehler: Docker ist nicht installiert.\n' >&2
+  exit 1
+}
+docker compose version >/dev/null 2>&1 || {
+  printf 'Fehler: Das Docker-Compose-Plugin fehlt.\n' >&2
+  exit 1
+}
+
+"$ROOT/bin/configure-host" --allow-missing-hdmi
+
+games_dir="$(
+  awk -F= '$1 == "GAMES_DIR" { sub(/^[^=]*=/, ""); print; exit }' "$ROOT/.env"
+)"
+GAMES_DIR="$games_dir" "$ROOT/bin/init-games"
+
+docker compose \
+  --project-directory "$ROOT" \
+  --env-file "$ROOT/.env" \
+  -f "$ROOT/docker-compose.yml" \
+  build --pull
+
+printf '\nFertig. Start mit: %s/bin/console-control start\n' "$ROOT"

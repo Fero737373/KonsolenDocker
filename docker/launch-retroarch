@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+core="${1:?Core fehlt}"
+rom="${2:?ROM fehlt}"
+config="${XDG_CONFIG_HOME:-/games/config}/retroarch/retroarch.cfg"
+
+exec retroarch --fullscreen --config "$config" --libretro "$core" "$rom"
+

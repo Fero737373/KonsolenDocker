@@ -1,0 +1,4 @@
+collection: Nintendo Entertainment System
+shortname: nes
+extension: nes, fds, zip, 7z
+launch: /usr/local/bin/launch-retroarch /usr/lib/aarch64-linux-gnu/libretro/nestopia_libretro.so "{file.path}"

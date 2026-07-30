@@ -1,0 +1,4 @@
+collection: PC Engine und TurboGrafx-16
+shortname: pcengine
+extension: pce, sgx, cue, chd
+launch: /usr/local/bin/launch-mednafen "{file.path}"

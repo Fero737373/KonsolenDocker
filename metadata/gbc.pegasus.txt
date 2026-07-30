@@ -1,0 +1,4 @@
+collection: Game Boy Color
+shortname: gbc
+extension: gbc, zip, 7z
+launch: /usr/local/bin/launch-retroarch /usr/lib/aarch64-linux-gnu/libretro/gambatte_libretro.so "{file.path}"

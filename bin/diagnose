@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -u
+
+printf '%s\n' '=== SITZUNGEN ==='
+loginctl list-sessions 2>&1 || true
+
+while read -r session_id _; do
+  [[ -n "$session_id" ]] || continue
+  loginctl show-session "$session_id" \
+    -p Name -p Type -p Class -p Display -p State -p Remote 2>&1 || true
+done < <(loginctl list-sessions --no-legend 2>/dev/null)
+
+printf '%s\n' '=== UMGEBUNG ==='
+printf 'USER=%s\nDISPLAY=%s\nXDG_SESSION_TYPE=%s\nXAUTHORITY=%s\n' \
+  "${USER:-}" "${DISPLAY:-}" "${XDG_SESSION_TYPE:-}" "${XAUTHORITY:-}"
+
+printf '%s\n' '=== BILDSCHIRME ==='
+if command -v xrandr >/dev/null; then
+  DISPLAY="${DISPLAY:-:0}" xrandr --query 2>&1 || true
+else
+  printf 'xrandr nicht installiert\n'
+fi
+
+if command -v wlr-randr >/dev/null; then
+  uid="$(id -u)"
+  for socket in "/run/user/$uid"/wayland-*; do
+    [[ -S "$socket" ]] || continue
+    XDG_RUNTIME_DIR="/run/user/$uid" \
+      WAYLAND_DISPLAY="$(basename "$socket")" \
+      wlr-randr 2>&1 || true
+  done
+fi
+
+printf '%s\n' '=== DOCKER ==='
+docker --version 2>&1 || true
+docker compose version 2>&1 || true
+docker info --format '{{json .SecurityOptions}}' 2>&1 || true
+
+printf '%s\n' '=== VIDEO / AUDIO / EINGABE ==='
+ls -l /dev/dri 2>&1 || true
+aplay -l 2>&1 || true
+ls -l /dev/input/by-id 2>&1 || true
+
+printf '%s\n' '=== SPEICHER ==='
+lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS,MODEL 2>&1 || true
+df -h /home/fero/Games 2>&1 || true
+

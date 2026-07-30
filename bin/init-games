@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+GAMES_DIR="${GAMES_DIR:-/home/fero/Games}"
+FORCE=false
+
+if [[ "${1:-}" == "--force" ]]; then
+  FORCE=true
+elif [[ -n "${1:-}" ]]; then
+  printf 'Verwendung: %s [--force]\n' "$0" >&2
+  exit 2
+fi
+
+[[ "$GAMES_DIR" = /* ]] || {
+  printf 'GAMES_DIR muss ein absoluter Pfad sein.\n' >&2
+  exit 1
+}
+
+systems=(
+  arcade
+  atari2600
+  nes
+  snes
+  gb
+  gbc
+  gba
+  sg1000
+  mastersystem
+  gamegear
+  megadrive
+  segacd
+  pcengine
+  ps1
+)
+
+mkdir -p \
+  "$GAMES_DIR/bios" \
+  "$GAMES_DIR/cache" \
+  "$GAMES_DIR/config" \
+  "$GAMES_DIR/saves" \
+  "$GAMES_DIR/states"
+
+for system in "${systems[@]}"; do
+  target="$GAMES_DIR/roms/$system"
+  mkdir -p "$target"
+  if [[ "$FORCE" == true || ! -e "$target/metadata.pegasus.txt" ]]; then
+    install -m 0644 "$ROOT/metadata/$system.pegasus.txt" \
+      "$target/metadata.pegasus.txt"
+  fi
+done
+
+printf 'Spielebibliothek bereit: %s\n' "$GAMES_DIR"
+

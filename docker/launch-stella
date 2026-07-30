@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+rom="${1:?ROM fehlt}"
+exec stella -fullscreen 1 "$rom"
+

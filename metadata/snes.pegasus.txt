@@ -1,0 +1,4 @@
+collection: Super Nintendo
+shortname: snes
+extension: smc, sfc, fig, bs, zip, 7z
+launch: /usr/local/bin/launch-retroarch /usr/lib/aarch64-linux-gnu/libretro/snes9x_libretro.so "{file.path}"

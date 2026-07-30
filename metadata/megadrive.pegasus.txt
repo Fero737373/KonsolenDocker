@@ -1,0 +1,4 @@
+collection: Sega Mega Drive
+shortname: megadrive
+extension: md, gen, bin, smd, zip, 7z
+launch: /usr/local/bin/launch-retroarch /usr/lib/aarch64-linux-gnu/libretro/genesis_plus_gx_libretro.so "{file.path}"
