@@ -1,0 +1,4 @@
+collection: Arcade
+shortname: arcade
+extension: zip, 7z
+launch: /usr/local/bin/launch-mame "{file.path}"

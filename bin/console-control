@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+CONTAINER_NAME="konsolendocker-pegasus"
+IMAGE_NAME="konsolendocker/pegasus:v1"
+
+die() {
+  printf 'unavailable\n%s\n' "$*" >&2
+  exit 1
+}
+
+env_value() {
+  local key="$1"
+  [[ -f "$ROOT/.env" ]] || return 0
+  awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$ROOT/.env"
+}
+
+is_running() {
+  [[ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null || true)" == "true" ]]
+}
+
+show_status() {
+  if ! command -v docker >/dev/null; then
+    printf 'unavailable\nDocker ist nicht installiert.\n'
+  elif ! docker info >/dev/null 2>&1; then
+    printf 'unavailable\nDocker ist nicht erreichbar oder die Berechtigung fehlt.\n'
+  elif is_running; then
+    printf 'running\n'
+  else
+    printf 'stopped\n'
+  fi
+}
+
+restore_dsi() {
+  local display_name xauthority_path dsi_output hdmi_output
+  local -a xrandr_args
+  display_name="$(env_value DISPLAY)"
+  xauthority_path="$(env_value XAUTHORITY)"
+  dsi_output="$(env_value DSI_OUTPUT)"
+  hdmi_output="$(env_value HDMI_OUTPUT)"
+  if [[ -n "$display_name" && -n "$xauthority_path" && -n "$dsi_output" ]]; then
+    xrandr_args=(--output "$dsi_output" --primary)
+    if [[ -n "$hdmi_output" ]]; then
+      xrandr_args+=(--output "$hdmi_output" --off)
+    fi
+    DISPLAY="$display_name" XAUTHORITY="$xauthority_path" \
+      xrandr "${xrandr_args[@]}" >/dev/null 2>&1 || true
+  fi
+}
+
+start_console() {
+  command -v docker >/dev/null || die "Docker ist nicht installiert."
+  docker compose version >/dev/null 2>&1 || die "Das Docker-Compose-Plugin fehlt."
+  docker info >/dev/null 2>&1 \
+    || die "Docker ist nicht erreichbar oder die Berechtigung fehlt."
+
+  if is_running; then
+    printf 'running\n'
+    return
+  fi
+
+  "$ROOT/bin/configure-host" --quiet >/dev/null \
+    || die "HDMI-/X11-Erkennung fehlgeschlagen. Bitte bin/diagnose ausführen."
+
+  local display_name xauthority_path hdmi_output dsi_output
+  display_name="$(env_value DISPLAY)"
+  xauthority_path="$(env_value XAUTHORITY)"
+  hdmi_output="$(env_value HDMI_OUTPUT)"
+  dsi_output="$(env_value DSI_OUTPUT)"
+
+  [[ -n "$hdmi_output" && -n "$dsi_output" ]] \
+    || die "HDMI-/DSI-Ausgang ist nicht konfiguriert."
+
+  DISPLAY="$display_name" XAUTHORITY="$xauthority_path" \
+    xrandr \
+      --output "$hdmi_output" --auto --right-of "$dsi_output" --primary \
+      >/dev/null \
+    || die "HDMI-Ausgang konnte nicht aktiviert werden."
+
+  if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+    restore_dsi
+    die "Docker-Image fehlt. Bitte zuerst bin/setup ausführen."
+  fi
+
+  if ! docker compose \
+      --project-directory "$ROOT" \
+      --env-file "$ROOT/.env" \
+      -f "$ROOT/docker-compose.yml" \
+      up -d --no-build; then
+    restore_dsi
+    die "Pegasus-Container konnte nicht gestartet werden."
+  fi
+
+  printf 'running\n'
+}
+
+stop_console() {
+  if command -v docker >/dev/null && [[ -f "$ROOT/.env" ]]; then
+    if ! docker compose \
+      --project-directory "$ROOT" \
+      --env-file "$ROOT/.env" \
+      -f "$ROOT/docker-compose.yml" \
+      down --remove-orphans >/dev/null; then
+      restore_dsi
+      die "Pegasus-Container konnte nicht sauber beendet werden."
+    fi
+  fi
+  restore_dsi
+  printf 'stopped\n'
+}
+
+toggle_console() {
+  if is_running; then
+    stop_console
+  else
+    start_console
+  fi
+}
+
+action="${1:-status}"
+case "$action" in
+  status)
+    show_status
+    ;;
+  start|stop|toggle)
+    command -v flock >/dev/null || die "flock ist nicht installiert."
+    exec 9>"$ROOT/.console-control.lock"
+    flock -n 9 || die "Eine andere Konsolen-Aktion läuft bereits."
+    "${action}_console"
+    ;;
+  *)
+    printf 'Verwendung: %s {status|start|stop|toggle}\n' "$0" >&2
+    exit 2
+    ;;
+esac

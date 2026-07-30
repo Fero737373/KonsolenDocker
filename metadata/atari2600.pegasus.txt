@@ -1,0 +1,4 @@
+collection: Atari 2600
+shortname: atari2600
+extension: a26, bin, rom, zip, 7z
+launch: /usr/local/bin/launch-stella "{file.path}"

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+rom="${1:?ROM fehlt}"
+rom_dir="$(dirname -- "$rom")"
+game_name="$(basename -- "$rom")"
+game_name="${game_name%.*}"
+
+mkdir -p \
+  /games/bios/mame \
+  /games/config/mame/cfg \
+  /games/saves/mame/nvram \
+  /games/states/mame
+
+exec mame \
+  -rompath "$rom_dir;/games/bios/mame" \
+  -inipath /games/config/mame \
+  -cfg_directory /games/config/mame/cfg \
+  -nvram_directory /games/saves/mame/nvram \
+  -state_directory /games/states/mame \
+  -artpath /games/bios/mame \
+  -skip_gameinfo \
+  -nowindow \
+  "$game_name"

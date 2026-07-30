@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+QUIET=false
+ALLOW_MISSING_HDMI=false
+
+for option in "$@"; do
+  case "$option" in
+    --quiet)
+      QUIET=true
+      ;;
+    --allow-missing-hdmi)
+      ALLOW_MISSING_HDMI=true
+      ;;
+    *)
+      printf 'Verwendung: %s [--quiet] [--allow-missing-hdmi]\n' "$0" >&2
+      exit 2
+      ;;
+  esac
+done
+
+die() {
+  printf 'Fehler: %s\n' "$*" >&2
+  exit 1
+}
+
+command -v xrandr >/dev/null || die "xrandr fehlt auf dem Host."
+
+existing_env_value() {
+  local key="$1"
+  [[ -f "$ROOT/.env" ]] || return 0
+  awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$ROOT/.env"
+}
+
+host_uid="$(id -u)"
+host_gid="$(id -g)"
+display_name="${DISPLAY:-$(existing_env_value DISPLAY)}"
+display_name="${display_name:-:0}"
+
+xauthority_path="${XAUTHORITY:-$(existing_env_value XAUTHORITY)}"
+if [[ -z "$xauthority_path" || ! -f "$xauthority_path" ]]; then
+  for candidate in "$HOME/.Xauthority" "/run/user/${host_uid}/gdm/Xauthority"; do
+    if [[ -f "$candidate" ]]; then
+      xauthority_path="$candidate"
+      break
+    fi
+  done
+fi
+[[ -n "$xauthority_path" && -f "$xauthority_path" ]] \
+  || die "Keine Xauthority-Datei gefunden. Bitte XAUTHORITY setzen."
+
+xrandr_output="$(
+  DISPLAY="$display_name" XAUTHORITY="$xauthority_path" xrandr --query 2>/dev/null
+)" || die "X11-Ausgänge für DISPLAY=${display_name} konnten nicht gelesen werden."
+
+connected_outputs="$(
+  awk '$2 == "connected" { print $1 }' <<<"$xrandr_output"
+)"
+
+pick_output() {
+  local requested="$1"
+  local pattern="$2"
+  if [[ -n "$requested" ]] && grep -Fxq -- "$requested" <<<"$connected_outputs"; then
+    printf '%s\n' "$requested"
+    return
+  fi
+  grep -E "$pattern" <<<"$connected_outputs" | head -n 1 || true
+}
+
+requested_hdmi="${HDMI_OUTPUT:-$(existing_env_value HDMI_OUTPUT)}"
+requested_dsi="${DSI_OUTPUT:-$(existing_env_value DSI_OUTPUT)}"
+hdmi_output="$(pick_output "$requested_hdmi" '^(HDMI|DP)')"
+dsi_output="$(pick_output "$requested_dsi" '^DSI')"
+
+if [[ -z "$hdmi_output" && "$ALLOW_MISSING_HDMI" == false ]]; then
+  die "Kein verbundener HDMI-Ausgang erkannt."
+fi
+[[ -n "$dsi_output" ]] || die "Kein verbundener DSI-Ausgang erkannt."
+[[ "$hdmi_output" != "$dsi_output" ]] || die "HDMI und DSI dürfen nicht identisch sein."
+
+device_gid() {
+  local fallback="$1"
+  shift
+  local node
+  for node in "$@"; do
+    if [[ -e "$node" ]]; then
+      stat -c '%g' "$node"
+      return
+    fi
+  done
+  printf '%s\n' "$fallback"
+}
+
+video_gid="$(device_gid "$host_gid" /dev/dri/card0 /dev/dri/card1)"
+render_gid="$(device_gid "$video_gid" /dev/dri/renderD128 /dev/dri/renderD129)"
+audio_gid="$(device_gid "$host_gid" /dev/snd/controlC0)"
+input_gid="$(device_gid "$host_gid" /dev/input/event0 /dev/input/js0)"
+
+games_dir="${GAMES_DIR:-$(existing_env_value GAMES_DIR)}"
+games_dir="${games_dir:-/home/fero/Games}"
+[[ "$games_dir" = /* ]] || die "GAMES_DIR muss ein absoluter Pfad sein."
+
+mkdir -p "$ROOT/.runtime"
+tmp_env="$(mktemp "$ROOT/.runtime/env.XXXXXX")"
+trap 'rm -f -- "$tmp_env"' EXIT
+
+{
+  printf 'HOST_UID=%s\n' "$host_uid"
+  printf 'HOST_GID=%s\n' "$host_gid"
+  printf 'VIDEO_GID=%s\n' "$video_gid"
+  printf 'RENDER_GID=%s\n' "$render_gid"
+  printf 'AUDIO_GID=%s\n' "$audio_gid"
+  printf 'INPUT_GID=%s\n' "$input_gid"
+  printf 'DISPLAY=%s\n' "$display_name"
+  printf 'XAUTHORITY=%s\n' "$xauthority_path"
+  printf 'GAMES_DIR=%s\n' "$games_dir"
+  printf 'HDMI_OUTPUT=%s\n' "$hdmi_output"
+  printf 'DSI_OUTPUT=%s\n' "$dsi_output"
+} >"$tmp_env"
+
+mv -- "$tmp_env" "$ROOT/.env"
+trap - EXIT
+
+if [[ "$QUIET" == false ]]; then
+  printf 'Host-Konfiguration gespeichert: %s\n' "$ROOT/.env"
+  printf 'DSI=%s, HDMI=%s, Games=%s\n' "$dsi_output" "${hdmi_output:-nicht verbunden}" "$games_dir"
+fi

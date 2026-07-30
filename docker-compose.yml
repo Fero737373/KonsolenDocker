@@ -1,0 +1,37 @@
+name: konsolendocker
+
+services:
+  pegasus:
+    platform: linux/arm64
+    build:
+      context: .
+      args:
+        PEGASUS_REF: 6b322063a036db60cba5810fda82a3ce38f1e62f
+        PCSX_REARMED_REF: 94f15b3a6b707070aeb0c58cab9bc4eddc1706ff
+    image: konsolendocker/pegasus:v1
+    container_name: konsolendocker-pegasus
+    restart: "no"
+    network_mode: none
+    init: true
+    user: "${HOST_UID:?Run ./bin/setup}:${HOST_GID:?Run ./bin/setup}"
+    group_add:
+      - "${VIDEO_GID:?Run ./bin/setup}"
+      - "${RENDER_GID:?Run ./bin/setup}"
+      - "${AUDIO_GID:?Run ./bin/setup}"
+      - "${INPUT_GID:?Run ./bin/setup}"
+    environment:
+      DISPLAY: "${DISPLAY:?Run ./bin/setup}"
+      XAUTHORITY: /run/host-xauthority
+    volumes:
+      - "${GAMES_DIR:?Run ./bin/setup}:/games:rw"
+      - "/tmp/.X11-unix:/tmp/.X11-unix:rw"
+      - "${XAUTHORITY:?Run ./bin/setup}:/run/host-xauthority:ro"
+      - "/dev/input:/dev/input:ro"
+    devices:
+      - "/dev/dri:/dev/dri"
+      - "/dev/snd:/dev/snd"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+

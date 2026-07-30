@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+rom="${1:?ROM fehlt}"
+mkdir -p /games/config/mednafen /games/saves/mednafen /games/states/mednafen
+
+exec mednafen \
+  -basedir /games/config/mednafen \
+  -filesys.path_firmware /games/bios \
+  -filesys.path_sav /games/saves/mednafen \
+  -filesys.path_state /games/states/mednafen \
+  -video.fs 1 \
+  "$rom"
