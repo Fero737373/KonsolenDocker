@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+runtime_dir="${XDG_RUNTIME_DIR:-/tmp/runtime-$(id -u)}"
+install -d -m 0700 "$runtime_dir"
+export XDG_RUNTIME_DIR="$runtime_dir"
+
 mkdir -p \
   "$HOME" \
   "$XDG_CACHE_HOME" \
@@ -33,8 +37,4 @@ fi
 
 exec /usr/local/bin/pegasus-fe \
   --kiosk \
-  --silent \
-  --no-menu-reboot \
-  --no-menu-shutdown \
-  --no-menu-suspend
-
+  --silent
