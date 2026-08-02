@@ -73,6 +73,8 @@ RUN sed -i 's/Components: main/Components: main contrib non-free non-free-firmwa
         libgl1-mesa-dri \
         libqt5gamepad5 \
         libqt5multimedia5-plugins \
+        libqt5sql5 \
+        libqt5sql5-sqlite \
         libqt5svg5 \
         libretro-gambatte \
         libretro-genesisplusgx \
