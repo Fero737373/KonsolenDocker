@@ -49,6 +49,54 @@ restore_dsi() {
   fi
 }
 
+output_has_mode() {
+  local query="$1"
+  local output="$2"
+  local mode="$3"
+  awk -v output="$output" -v mode="$mode" '
+    $1 == output && $2 == "connected" { in_output = 1; next }
+    in_output && $0 !~ /^[[:space:]]/ { exit }
+    in_output && $1 == mode { found = 1; exit }
+    END { exit found ? 0 : 1 }
+  ' <<<"$query"
+}
+
+activate_hdmi() {
+  local display_name="$1"
+  local xauthority_path="$2"
+  local hdmi_output="$3"
+  local dsi_output="$4"
+  local requested_mode query selected_mode candidate
+
+  requested_mode="$(env_value HDMI_MODE)"
+  query="$(
+    DISPLAY="$display_name" XAUTHORITY="$xauthority_path" xrandr --query 2>/dev/null
+  )" || return 1
+
+  selected_mode=""
+  for candidate in \
+      "$requested_mode" \
+      1920x1080 \
+      1360x768 \
+      1280x720 \
+      1024x768 \
+      800x600; do
+    [[ -n "$candidate" ]] || continue
+    if output_has_mode "$query" "$hdmi_output" "$candidate"; then
+      selected_mode="$candidate"
+      break
+    fi
+  done
+
+  [[ -n "$selected_mode" ]] || return 1
+
+  DISPLAY="$display_name" XAUTHORITY="$xauthority_path" \
+    xrandr \
+      --output "$hdmi_output" --mode "$selected_mode" \
+      --right-of "$dsi_output" --primary \
+      >/dev/null 2>&1
+}
+
 start_console() {
   command -v docker >/dev/null || die "Docker ist nicht installiert."
   docker compose version >/dev/null 2>&1 || die "Das Docker-Compose-Plugin fehlt."
@@ -72,11 +120,12 @@ start_console() {
   [[ -n "$hdmi_output" && -n "$dsi_output" ]] \
     || die "HDMI-/DSI-Ausgang ist nicht konfiguriert."
 
-  DISPLAY="$display_name" XAUTHORITY="$xauthority_path" \
-    xrandr \
-      --output "$hdmi_output" --auto --right-of "$dsi_output" --primary \
-      >/dev/null \
-    || die "HDMI-Ausgang konnte nicht aktiviert werden."
+  activate_hdmi \
+    "$display_name" \
+    "$xauthority_path" \
+    "$hdmi_output" \
+    "$dsi_output" \
+    || die "Keine sichere HDMI-Auflösung konnte aktiviert werden."
 
   if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
     restore_dsi
