@@ -70,8 +70,10 @@ pick_output() {
 
 requested_hdmi="${HDMI_OUTPUT:-$(existing_env_value HDMI_OUTPUT)}"
 requested_dsi="${DSI_OUTPUT:-$(existing_env_value DSI_OUTPUT)}"
+requested_hdmi_mode="${HDMI_MODE:-$(existing_env_value HDMI_MODE)}"
 hdmi_output="$(pick_output "$requested_hdmi" '^(HDMI|DP)')"
 dsi_output="$(pick_output "$requested_dsi" '^DSI')"
+hdmi_mode="${requested_hdmi_mode:-1920x1080}"
 
 if [[ -z "$hdmi_output" && "$ALLOW_MISSING_HDMI" == false ]]; then
   die "Kein verbundener HDMI-Ausgang erkannt."
@@ -116,6 +118,7 @@ trap 'rm -f -- "$tmp_env"' EXIT
   printf 'XAUTHORITY=%s\n' "$xauthority_path"
   printf 'GAMES_DIR=%s\n' "$games_dir"
   printf 'HDMI_OUTPUT=%s\n' "$hdmi_output"
+  printf 'HDMI_MODE=%s\n' "$hdmi_mode"
   printf 'DSI_OUTPUT=%s\n' "$dsi_output"
 } >"$tmp_env"
 
@@ -124,5 +127,6 @@ trap - EXIT
 
 if [[ "$QUIET" == false ]]; then
   printf 'Host-Konfiguration gespeichert: %s\n' "$ROOT/.env"
-  printf 'DSI=%s, HDMI=%s, Games=%s\n' "$dsi_output" "${hdmi_output:-nicht verbunden}" "$games_dir"
+  printf 'DSI=%s, HDMI=%s (%s), Games=%s\n' \
+    "$dsi_output" "${hdmi_output:-nicht verbunden}" "$hdmi_mode" "$games_dir"
 fi
