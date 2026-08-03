@@ -14,9 +14,38 @@ mkdir -p \
   /games/saves \
   /games/states
 
+# Das Container-Image ist die Quelle der Wahrheit. Dadurch bleiben keine alten
+# RetroArch-Werte für Controller oder Audio aus früheren Builds aktiv.
 retroarch_config="$XDG_CONFIG_HOME/retroarch/retroarch.cfg"
-if [[ ! -e "$retroarch_config" ]]; then
-  install -m 0644 /opt/konsolen/retroarch.cfg "$retroarch_config"
+install -m 0644 /opt/konsolen/retroarch.cfg "$retroarch_config"
+
+# Raspberry Pi stellt mehrere ALSA-Karten bereit. Bevorzugt wird der erste
+# HDMI/MAI-Wiedergabeausgang; andernfalls der erste verfügbare Playback-Port.
+audio_endpoint=""
+if [[ -r /proc/asound/pcm ]]; then
+  audio_endpoint="$(awk -F: '
+    /playback/ && tolower($0) ~ /(hdmi|vc4|mai)/ { gsub(/[[:space:]]/, "", $1); print $1; exit }
+  ' /proc/asound/pcm)"
+  if [[ -z "$audio_endpoint" ]]; then
+    audio_endpoint="$(awk -F: '
+      /playback/ { gsub(/[[:space:]]/, "", $1); print $1; exit }
+    ' /proc/asound/pcm)"
+  fi
+fi
+
+if [[ "$audio_endpoint" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+  card="$((10#${BASH_REMATCH[1]}))"
+  device="$((10#${BASH_REMATCH[2]}))"
+  cat >"$HOME/.asoundrc" <<EOF
+pcm.!default {
+  type plug
+  slave.pcm "hw:${card},${device}"
+}
+ctl.!default {
+  type hw
+  card ${card}
+}
+EOF
 fi
 
 pegasus_config="$XDG_CONFIG_HOME/pegasus-frontend"
