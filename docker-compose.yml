@@ -26,10 +26,12 @@ services:
       - "${GAMES_DIR:?Run ./bin/setup}:/games:rw"
       - "/tmp/.X11-unix:/tmp/.X11-unix:rw"
       - "${XAUTHORITY:?Run ./bin/setup}:/run/host-xauthority:ro"
-      - "/dev/input:/dev/input:ro"
+      - "/dev/input:/dev/input:rw"
     devices:
       - "/dev/dri:/dev/dri"
       - "/dev/snd:/dev/snd"
+    device_cgroup_rules:
+      - "c 13:* rwm"
     security_opt:
       - no-new-privileges:true
     cap_drop:
