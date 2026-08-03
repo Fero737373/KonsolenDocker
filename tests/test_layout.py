@@ -1,5 +1,5 @@
+import subprocess
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SYSTEMS = {
@@ -43,3 +43,18 @@ def test_sources_are_pinned() -> None:
     dockerfile = (ROOT / "Dockerfile").read_text()
     assert "PEGASUS_REF=6b322063a036db60cba5810fda82a3ce38f1e62f" in dockerfile
     assert "PCSX_REARMED_REF=94f15b3a6b707070aeb0c58cab9bc4eddc1706ff" in dockerfile
+
+
+def test_shell_scripts_have_valid_syntax() -> None:
+    scripts = sorted((ROOT / "bin").iterdir()) + sorted((ROOT / "docker").iterdir())
+    for script in scripts:
+        if script.is_file() and script.read_bytes().startswith(b"#!/"):
+            subprocess.run(["bash", "-n", script], check=True)
+
+
+def test_console_control_exposes_safe_bluetooth_pairing() -> None:
+    control = (ROOT / "bin" / "console-control").read_text()
+    pairing = (ROOT / "bin" / "pair-controller").read_text()
+    assert "start|stop|toggle|bluetooth" in control
+    assert "--agent NoInputNoOutput" in pairing
+    assert "Mehrere neue Controller gefunden" in pairing

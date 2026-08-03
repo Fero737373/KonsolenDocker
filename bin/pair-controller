@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export LC_ALL=C
+
+SCAN_SECONDS="${BLUETOOTH_SCAN_SECONDS:-12}"
+COMMAND_TIMEOUT=8
+PAIR_TIMEOUT=30
+
+die() {
+  printf 'unavailable\n%s\n' "$*" >&2
+  exit 1
+}
+
+success() {
+  printf 'connected\n%s\n' "$*"
+  exit 0
+}
+
+ctl() {
+  bluetoothctl --timeout "$COMMAND_TIMEOUT" "$@"
+}
+
+device_info() {
+  ctl info "$1" 2>/dev/null || true
+}
+
+is_game_controller() {
+  local info="$1"
+  grep -Eiq '^[[:space:]]*Icon:[[:space:]]*input-gaming' <<<"$info" \
+    || grep -Eiq \
+      '^[[:space:]]*(Name|Alias):.*(controller|gamepad|dualshock|dualsense|xbox|8bitdo|pro controller|joy-con|mocute|gamesir|gulikit)' \
+      <<<"$info"
+}
+
+property_is_yes() {
+  local info="$1"
+  local property="$2"
+  grep -Eiq "^[[:space:]]*${property}:[[:space:]]*yes[[:space:]]*$" <<<"$info"
+}
+
+list_devices() {
+  ctl devices 2>/dev/null || true
+}
+
+reconnect_known_controller() {
+  local line address name info
+  while IFS= read -r line; do
+    if [[ ! "$line" =~ ^Device[[:space:]]+([0-9A-Fa-f:]{17})[[:space:]]+(.+)$ ]]; then
+      continue
+    fi
+    address="${BASH_REMATCH[1]}"
+    name="${BASH_REMATCH[2]}"
+    info="$(device_info "$address")"
+    is_game_controller "$info" || continue
+    property_is_yes "$info" Paired || continue
+
+    if ! property_is_yes "$info" Connected; then
+      ctl connect "$address" >/dev/null 2>&1 || true
+      info="$(device_info "$address")"
+    fi
+    if property_is_yes "$info" Connected; then
+      ctl trust "$address" >/dev/null 2>&1 || true
+      success "Controller verbunden: $name"
+    fi
+  done < <(list_devices)
+}
+
+[[ "$SCAN_SECONDS" =~ ^[0-9]+$ ]] \
+  && (( SCAN_SECONDS >= 1 && SCAN_SECONDS <= 60 )) \
+  || die "BLUETOOTH_SCAN_SECONDS muss zwischen 1 und 60 liegen."
+
+command -v bluetoothctl >/dev/null \
+  || die "Bluetooth-Unterstützung fehlt. Installiere auf dem Pi das Paket bluez."
+
+[[ -n "$(ctl list 2>/dev/null || true)" ]] \
+  || die "Kein Bluetooth-Adapter wurde gefunden."
+
+adapter="$(ctl show 2>/dev/null || true)"
+if ! property_is_yes "$adapter" Powered; then
+  ctl power on >/dev/null 2>&1 \
+    || die "Bluetooth konnte nicht aktiviert werden. Prüfe rfkill und den Dienst bluetooth."
+fi
+
+# Bereits gekoppelte Controller werden ohne erneutes Pairing verbunden.
+reconnect_known_controller
+
+# Neue LE- und Classic-Controller müssen während eines aktiven Scans senden.
+bluetoothctl --timeout "$SCAN_SECONDS" scan on >/dev/null 2>&1 || true
+ctl scan off >/dev/null 2>&1 || true
+
+# Ein zuvor gekoppelter Controller kann erst durch den Scan wieder erreichbar sein.
+reconnect_known_controller
+
+declare -a addresses=()
+declare -a names=()
+while IFS= read -r line; do
+  if [[ ! "$line" =~ ^Device[[:space:]]+([0-9A-Fa-f:]{17})[[:space:]]+(.+)$ ]]; then
+    continue
+  fi
+  address="${BASH_REMATCH[1]}"
+  name="${BASH_REMATCH[2]}"
+  info="$(device_info "$address")"
+  is_game_controller "$info" || continue
+  property_is_yes "$info" Paired && continue
+  addresses+=("$address")
+  names+=("$name")
+done < <(list_devices)
+
+if (( ${#addresses[@]} == 0 )); then
+  die "Kein Controller im Kopplungsmodus gefunden. Aktiviere den Pairing-Modus und versuche es erneut."
+fi
+if (( ${#addresses[@]} > 1 )); then
+  die "Mehrere neue Controller gefunden. Schalte alle bis auf den gewünschten Controller aus und versuche es erneut."
+fi
+
+address="${addresses[0]}"
+name="${names[0]}"
+bluetoothctl \
+  --agent NoInputNoOutput \
+  --timeout "$PAIR_TIMEOUT" \
+  pair "$address" >/dev/null 2>&1 \
+  || die "Kopplung mit $name fehlgeschlagen. Setze den Controller erneut in den Pairing-Modus."
+
+ctl trust "$address" >/dev/null 2>&1 || true
+ctl connect "$address" >/dev/null 2>&1 || true
+info="$(device_info "$address")"
+property_is_yes "$info" Connected \
+  || die "$name wurde gekoppelt, ist aber noch nicht verbunden. Schalte ihn kurz aus und wieder ein."
+
+success "Controller verbunden: $name"

@@ -26,7 +26,8 @@ von V1.
 
 Voraussetzungen: Docker Engine mit Compose-Plugin, `xrandr` aus
 `x11-xserver-utils`, Zugriff des Benutzers `fero` auf Docker sowie eine
-laufende grafische X11-Sitzung.
+laufende grafische X11-Sitzung. Für den Bluetooth-Button muss zusätzlich
+BlueZ mit `bluetoothctl` installiert und der Dienst `bluetooth` aktiv sein.
 
 ```bash
 git clone https://github.com/Fero737373/KonsolenDocker.git \
@@ -52,6 +53,20 @@ Anschließend:
 ihn für Pegasus auf „primary“. Ohne erkannten HDMI-Ausgang startet der
 Container nicht. `stop` beendet ihn, schaltet HDMI wieder ab und setzt DSI auf
 „primary“.
+
+## Bluetooth-Controller
+
+Setze genau einen neuen Controller in den Pairing-Modus und starte dann die
+Kopplung über den StorchCam-Button oder direkt auf dem Pi:
+
+```bash
+./bin/console-control bluetooth
+```
+
+Bereits gekoppelte Controller werden zuerst wieder verbunden. Ein neuer
+Controller wird nur automatisch ausgewählt, wenn genau ein passendes Gamepad
+gefunden wurde. Nach erfolgreicher Kopplung wird das Gerät von BlueZ als
+vertrauenswürdig gespeichert und verbindet sich künftig automatisch.
 
 ## Spiele und BIOS
 
@@ -84,6 +99,28 @@ ROMs kommen in den passenden Unterordner:
 Für Disc-Systeme möglichst `.cue`, `.chd` oder `.m3u` verwenden. Benötigte
 BIOS-Dateien müssen aus eigenen, legalen Quellen in `bios/` abgelegt werden.
 Die PS1-BIOS-Suche folgt dabei den Dateinamen des PCSX-ReARMed-Cores.
+
+## Cover in Pegasus
+
+Pegasus erkennt Cover ohne zusätzliche Metadaten, wenn sie unter
+`media/<ROM-Dateiname ohne Endung>/boxFront.jpg` oder `boxFront.png` liegen.
+Für `Super Mario World (Europe).sfc` ist der vollständige Pfad:
+
+```text
+/home/fero/Games/roms/snes/media/Super Mario World (Europe)/boxFront.jpg
+```
+
+Alternativ kann ein Cover in `metadata.pegasus.txt` einem Spiel ausdrücklich
+zugeordnet werden:
+
+```text
+game: Super Mario World (Europe)
+file: Super Mario World (Europe).sfc
+assets.box_front: media/Super Mario World (Europe)/boxFront.jpg
+```
+
+Nach Änderungen die Konsole einmal beenden und neu starten, damit Pegasus die
+Bibliothek und Medien erneut einliest.
 
 ## Noch unbekannte Bildschirm-/Audio-Daten
 

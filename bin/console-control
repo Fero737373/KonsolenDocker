@@ -167,19 +167,25 @@ toggle_console() {
   fi
 }
 
+bluetooth_console() {
+  [[ -x "$ROOT/bin/pair-controller" ]] \
+    || die "Bluetooth-Controller-Steuerung fehlt oder ist nicht ausführbar."
+  "$ROOT/bin/pair-controller"
+}
+
 action="${1:-status}"
 case "$action" in
   status)
     show_status
     ;;
-  start|stop|toggle)
+  start|stop|toggle|bluetooth)
     command -v flock >/dev/null || die "flock ist nicht installiert."
     exec 9>"$ROOT/.console-control.lock"
     flock -n 9 || die "Eine andere Konsolen-Aktion läuft bereits."
     "${action}_console"
     ;;
   *)
-    printf 'Verwendung: %s {status|start|stop|toggle}\n' "$0" >&2
+    printf 'Verwendung: %s {status|start|stop|toggle|bluetooth}\n' "$0" >&2
     exit 2
     ;;
 esac
