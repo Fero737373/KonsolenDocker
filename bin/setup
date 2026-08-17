@@ -13,6 +13,7 @@ docker compose version >/dev/null 2>&1 || {
 }
 
 "$ROOT/bin/configure-host" --allow-missing-hdmi
+"$ROOT/bin/configure-romstore"
 
 games_dir="$(
   awk -F= '$1 == "GAMES_DIR" { sub(/^[^=]*=/, ""); print; exit }' "$ROOT/.env"

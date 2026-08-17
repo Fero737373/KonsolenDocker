@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+QUIET=false
+
+if [[ "${1:-}" == "--quiet" ]]; then
+  QUIET=true
+elif [[ -n "${1:-}" ]]; then
+  printf 'Verwendung: %s [--quiet]\n' "$0" >&2
+  exit 2
+fi
+
+[[ -f "$ROOT/.env" ]] || {
+  printf 'Fehler: .env fehlt. Bitte zuerst bin/configure-host ausführen.\n' >&2
+  exit 1
+}
+
+existing_key="$(
+  awk -F= '$1 == "THEGAMESDB_API_KEY" { sub(/^[^=]*=/, ""); print; exit }' \
+    "$ROOT/.env" 2>/dev/null || true
+)"
+api_key="${THEGAMESDB_API_KEY:-$existing_key}"
+
+if [[ -z "$api_key" && -t 0 && -t 1 ]]; then
+  printf 'TheGamesDB API-Key für Spielcover (optional, Eingabe bleibt unsichtbar): '
+  IFS= read -r -s api_key
+  printf '\n'
+fi
+
+if [[ -n "$api_key" && ! "$api_key" =~ ^[A-Za-z0-9._-]+$ ]]; then
+  printf 'Fehler: Der TheGamesDB API-Key enthält unzulässige Zeichen.\n' >&2
+  exit 1
+fi
+
+mkdir -p "$ROOT/.runtime"
+tmp_env="$(mktemp "$ROOT/.runtime/romstore-env.XXXXXX")"
+trap 'rm -f -- "$tmp_env"' EXIT
+
+awk -F= '$1 != "THEGAMESDB_API_KEY"' "$ROOT/.env" >"$tmp_env"
+printf 'THEGAMESDB_API_KEY=%s\n' "$api_key" >>"$tmp_env"
+mv -- "$tmp_env" "$ROOT/.env"
+chmod 0600 "$ROOT/.env"
+trap - EXIT
+
+if [[ "$QUIET" == false ]]; then
+  if [[ -n "$api_key" ]]; then
+    printf 'TheGamesDB-Cover sind aktiviert. Der Key wurde nur lokal in .env gespeichert.\n'
+  else
+    printf 'TheGamesDB ist nicht konfiguriert; Quellen-Cover und Platzhalter bleiben verfügbar.\n'
+  fi
+fi

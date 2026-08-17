@@ -1,6 +1,8 @@
 import os
 import subprocess
 from pathlib import Path
+import tempfile
+import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 PAIR_SCRIPT = ROOT / "bin" / "pair-controller"
@@ -77,22 +79,34 @@ def run_pairing(tmp_path: Path, mode: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(PAIR_SCRIPT, capture_output=True, text=True, env=env, timeout=5, check=False)
 
 
-def test_reconnects_known_controller_without_pairing(tmp_path: Path) -> None:
-    result = run_pairing(tmp_path, "known")
+class ControllerPairingTests(unittest.TestCase):
+    def test_reconnects_known_controller_without_pairing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = run_pairing(Path(directory), "known")
 
-    assert result.returncode == 0
-    assert result.stdout.splitlines() == ["connected", "Controller verbunden: 8BitDo Pro 2"]
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(
+            result.stdout.splitlines(),
+            ["connected", "Controller verbunden: 8BitDo Pro 2"],
+        )
+
+    def test_pairs_exactly_one_new_controller(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = run_pairing(Path(directory), "new")
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(
+            result.stdout.splitlines(),
+            ["connected", "Controller verbunden: 8BitDo Pro 2"],
+        )
+
+    def test_refuses_ambiguous_new_controllers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = run_pairing(Path(directory), "multiple")
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Mehrere neue Controller gefunden", result.stderr)
 
 
-def test_pairs_exactly_one_new_controller(tmp_path: Path) -> None:
-    result = run_pairing(tmp_path, "new")
-
-    assert result.returncode == 0
-    assert result.stdout.splitlines() == ["connected", "Controller verbunden: 8BitDo Pro 2"]
-
-
-def test_refuses_ambiguous_new_controllers(tmp_path: Path) -> None:
-    result = run_pairing(tmp_path, "multiple")
-
-    assert result.returncode == 1
-    assert "Mehrere neue Controller gefunden" in result.stderr
+if __name__ == "__main__":
+    unittest.main()

@@ -5,6 +5,10 @@ Docker auf dem HDMI-Fernseher; die StorchCam bleibt auf dem DSI-Display.
 Spiele, BIOS-Dateien, Spielstände und Konfiguration liegen unabhängig vom
 Container unter `/home/fero/Games`.
 
+Der integrierte ROM Store zeigt ausschließlich frei weitergebbare Homebrew-,
+Public-Domain-, Demo-, Test- und Utility-Inhalte direkt in der jeweiligen
+Pegasus-Konsole an. Download, Cover und Metadaten werden gemeinsam installiert.
+
 ## V1-Systeme
 
 | Ordner | System | Emulator |
@@ -41,6 +45,18 @@ X11-Berechtigung und Geräte-Gruppen und baut das Image. HDMI wird übernommen,
 wenn es dabei bereits verbunden ist; der Start prüft es in jedem Fall erneut.
 Es werden keine ROMs oder BIOS-Dateien mitgeliefert.
 
+Bei der Einrichtung fragt `setup` optional und verdeckt nach dem TheGamesDB-
+API-Key. Der Key wird nur lokal in `.env` mit Dateirechten `0600` gespeichert,
+nicht in ein Image eingebaut und nicht in Git aufgenommen. Ohne Key funktionieren
+Quellen-Cover und automatisch erzeugte Platzhalter weiterhin.
+
+Nach späteren Aktualisierungen genügt:
+
+```bash
+git pull
+./bin/setup
+```
+
 Anschließend:
 
 ```bash
@@ -53,6 +69,50 @@ Anschließend:
 ihn für Pegasus auf „primary“. Ohne erkannten HDMI-Ausgang startet der
 Container nicht. `stop` beendet ihn, schaltet HDMI wieder ab und setzt DSI auf
 „primary“.
+
+## ROM Store in Pegasus
+
+1. Im Pegasus-Hauptbildschirm eine Konsole auswählen.
+2. Die Filter-/`Y`-Taste drücken. Der Download-Katalog öffnet sich innerhalb
+   dieser Konsole im bestehenden Pegasus-Grid-Design.
+3. Mit dem Steuerkreuz einen Inhalt wählen und mit `A` laden. `X` aktualisiert
+   den Katalog live über die offiziellen APIs.
+4. Der Dialog zeigt Fortschritt, Datenmenge und Geschwindigkeit. `B` bricht
+   einen laufenden Download ab oder schließt einen fertigen Dialog.
+
+Die bisherigen Pegasus-Filter bleiben über `X` (Details) und anschließend `Y`
+erreichbar.
+
+Nach erfolgreicher Installation lädt Pegasus seine Datenquellen neu. ROM und
+Cover erscheinen dadurch direkt in derselben Konsolensammlung. Installationen
+liegen getrennt unter:
+
+```text
+/home/fero/Games/roms/<system>/romstore/<titel-id>/
+```
+
+Der Katalog verbindet zwei explizite Quellen:
+
+- **[Homebrew Hub](https://hh.gbdev.io/)** für GB, GBC, GBA und NES. Die
+  [offizielle API](https://github.com/gbdev/homebrewhub/blob/main/API.md) ist
+  die Quelle; Hack-ROM-Einträge werden bewusst ausgeschlossen.
+- **[Libretro Content](https://github.com/libretro/libretro-content)** für die
+  unterstützten V1-Systeme. Spiele, Demos, Tests und Utilities bleiben sichtbar.
+  Ein gepinnter Katalog-Snapshot dient als Fallback, falls die anonyme GitHub-API
+  gerade nicht erreichbar ist.
+
+**[TheGamesDB](https://api.thegamesdb.net/) liefert nur Cover-Metadaten und
+niemals ROM-Dateien.** Gibt weder eine Quelle noch TheGamesDB ein Cover zurück,
+erzeugt der Store ein neutrales Platzhalter-Cover. Romifleur/Myrient wurde nicht
+angebunden, weil es keine stabile, rechtmäßige ROM-API für diesen Zweck
+bereitstellt.
+
+Die lokale API ist nur im internen Docker-Netz erreichbar. Pegasus selbst hat
+keinen Internetzugang; nur der eingeschränkte `romstore`-Dienst besitzt Egress.
+Er akzeptiert ausschließlich HTTPS-Ziele auf einer festen Host-Allowlist,
+prüft Weiterleitungen, Größen und vorhandene SHA-256-Werte und installiert über
+einen temporären Ordner. ZIP-Pfadtraversierung, Symlinks und auffällige
+Kompressionsverhältnisse werden abgewiesen.
 
 ## Bluetooth-Controller
 
@@ -121,6 +181,19 @@ assets.box_front: media/Super Mario World (Europe)/boxFront.jpg
 
 Nach Änderungen die Konsole einmal beenden und neu starten, damit Pegasus die
 Bibliothek und Medien erneut einliest.
+
+## Entwicklung und Tests
+
+Der gesamte lokale Testlauf hat genau einen Einstiegspunkt und benötigt keine
+zusätzlichen Python-Pakete:
+
+```bash
+./bin/test
+```
+
+Die verbindlichen Qualitätsregeln und Review-Kriterien stehen in
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Sie übertragen die im Projekt geforderten
+Clean-Code-Prinzipien auf Python, QML, Shell und Container-Konfiguration.
 
 ## Noch unbekannte Bildschirm-/Audio-Daten
 

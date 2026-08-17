@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+
+python3 -m compileall -q "$ROOT/romstore" "$ROOT/tests"
+python3 -m unittest discover \
+  --start-directory "$ROOT/tests" \
+  --pattern 'test_*.py' \
+  --verbose
+git -C "$ROOT" diff --check

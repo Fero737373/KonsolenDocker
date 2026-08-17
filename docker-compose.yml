@@ -1,6 +1,44 @@
 name: konsolendocker
 
 services:
+  romstore:
+    platform: linux/arm64
+    build:
+      context: .
+      dockerfile: romstore/Dockerfile
+    image: konsolendocker/romstore:v1
+    container_name: konsolendocker-romstore
+    restart: "no"
+    init: true
+    user: "${HOST_UID:?Run ./bin/setup}:${HOST_GID:?Run ./bin/setup}"
+    environment:
+      GAMES_DIR: /games
+      THEGAMESDB_API_KEY: "${THEGAMESDB_API_KEY:-}"
+    volumes:
+      - "${GAMES_DIR:?Run ./bin/setup}:/games:rw"
+    networks:
+      - console-internal
+      - romstore-egress
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    pids_limit: 128
+    mem_limit: 256m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).read()"
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
   pegasus:
     platform: linux/arm64
     build:
@@ -11,7 +49,11 @@ services:
     image: konsolendocker/pegasus:v1
     container_name: konsolendocker-pegasus
     restart: "no"
-    network_mode: none
+    depends_on:
+      romstore:
+        condition: service_healthy
+    networks:
+      - console-internal
     init: true
     user: "${HOST_UID:?Run ./bin/setup}:${HOST_GID:?Run ./bin/setup}"
     group_add:
@@ -37,3 +79,7 @@ services:
     cap_drop:
       - ALL
 
+networks:
+  console-internal:
+    internal: true
+  romstore-egress:
