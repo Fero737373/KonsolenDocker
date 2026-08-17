@@ -185,9 +185,20 @@ FocusScope {
         romstore.openFor(topbar.currentCollection.shortName, topbar.currentCollection.name);
     }
 
+    function isRomStoreEntry(game) {
+        return game
+            && game.extra
+            && game.extra.romstore
+            && game.extra.romstore.length > 0;
+    }
+
     function launchGame() {
         if (gamegrid.currentGame.missing)
             return;
+        if (isRomStoreEntry(gamegrid.currentGame)) {
+            openRomStore();
+            return;
+        }
         api.memory.set('collection', topbar.currentCollection.name);
         api.memory.set('game', gamegrid.currentGame.title);
         gamegrid.currentGame.launch();

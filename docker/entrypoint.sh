@@ -1,6 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+select_konsolendocker_theme() {
+  local settings_path="$1"
+  local settings_dir
+  local settings_tmp
+
+  settings_dir="$(dirname -- "$settings_path")"
+  settings_tmp="$(mktemp "$settings_dir/settings.XXXXXX")"
+  awk -v replacement='general.theme: :/themes/pegasus-theme-grid/' '
+    $1 == "general.theme:" {
+      if (!theme_written) {
+        print replacement
+        theme_written = 1
+      }
+      next
+    }
+    { print }
+    END {
+      if (!theme_written)
+        print replacement
+    }
+  ' "$settings_path" >"$settings_tmp"
+  chmod 0600 "$settings_tmp"
+  mv -f "$settings_tmp" "$settings_path"
+}
+
 runtime_dir="${XDG_RUNTIME_DIR:-/tmp/runtime-$(id -u)}"
 install -d -m 0700 "$runtime_dir"
 export XDG_RUNTIME_DIR="$runtime_dir"
@@ -63,6 +88,8 @@ if [[ ! -e "$settings" ]]; then
       'general.input-mouse-support: false'
   } >"$settings"
 fi
+
+select_konsolendocker_theme "$settings"
 
 exec /usr/local/bin/pegasus-fe \
   --kiosk \

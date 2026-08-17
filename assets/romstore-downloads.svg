@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="840" viewBox="0 0 600 840">
+  <rect width="600" height="840" rx="24" fill="#111"/>
+  <rect x="24" y="24" width="552" height="792" rx="16" fill="#222" stroke="#0074da" stroke-width="8"/>
+  <path d="M300 150v260m-104-92 104 104 104-104M174 478v82c0 22 18 40 40 40h172c22 0 40-18 40-40v-82"
+        fill="none" stroke="#4ae" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="300" y="690" fill="#eee" font-family="Roboto, sans-serif" font-size="58" font-weight="700" text-anchor="middle">DOWNLOADS</text>
+  <text x="300" y="750" fill="#4ae" font-family="Roboto, sans-serif" font-size="27" text-anchor="middle">HOMEBREW · PUBLIC DOMAIN</text>
+</svg>
