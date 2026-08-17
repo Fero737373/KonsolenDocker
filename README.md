@@ -58,6 +58,11 @@ git pull
 ./bin/setup
 ```
 
+`setup` startet den ROM-Store nach dem Build kurz, wartet auf dessen Healthcheck
+und verlangt mindestens einen NES-Katalogeintrag. War Pegasus bereits aktiv,
+werden beide Container mit dem neuen Image neu erstellt; dadurch kann keine alte
+UI nach einem erfolgreichen Update weiterlaufen.
+
 Anschließend:
 
 ```bash
