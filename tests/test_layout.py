@@ -73,6 +73,18 @@ class ProjectLayoutTests(unittest.TestCase):
         self.assertIn("scale: 1.20", combined)
         self.assertIn('import "layer_romstore"', (ROOT / "pegasus-theme" / "theme.qml").read_text())
 
+    def test_native_download_entry_opens_the_store(self) -> None:
+        theme = (ROOT / "pegasus-theme" / "theme.qml").read_text()
+        init_games = (ROOT / "bin" / "init-games").read_text()
+        entrypoint = (ROOT / "docker" / "entrypoint.sh").read_text()
+
+        self.assertIn("game.extra.romstore", theme)
+        self.assertIn("isRomStoreEntry(gamegrid.currentGame)", theme)
+        self.assertIn("game: Downloads", init_games)
+        self.assertIn("x-romstore: true", init_games)
+        self.assertIn("konsolendocker-store.metadata.pegasus.txt", init_games)
+        self.assertIn("general.theme: :/themes/pegasus-theme-grid/", entrypoint)
+
     def test_all_rom_store_components_are_bundled(self) -> None:
         dockerfile = (ROOT / "Dockerfile").read_text()
 

@@ -34,6 +34,57 @@ systems=(
   ps1
 )
 
+store_asset="$ROOT/assets/romstore-downloads.svg"
+
+collection_name_for() {
+  local source_metadata="$1"
+  local collection_name
+
+  collection_name="$(sed -n 's/^collection:[[:space:]]*//p' "$source_metadata")"
+  [[ -n "$collection_name" ]] || {
+    printf 'Collection fehlt in %s.\n' "$source_metadata" >&2
+    return 1
+  }
+  printf '%s\n' "$collection_name"
+}
+
+write_store_metadata() {
+  local system="$1"
+  local target="$2"
+  local collection_name="$3"
+  local metadata_path="$target/konsolendocker-store.metadata.pegasus.txt"
+  local metadata_tmp
+
+  metadata_tmp="$(mktemp "$target/.konsolendocker-store.XXXXXX")"
+  {
+    printf 'collection: %s\n' "$collection_name"
+    printf 'shortname: %s\n\n' "$system"
+    printf 'game: Downloads\n'
+    printf 'sortby: 000 Downloads\n'
+    printf 'file: .konsolendocker/downloads.kdstore\n'
+    printf 'launch: /usr/bin/false\n'
+    printf 'developer: KonsolenDocker\n'
+    printf 'tags: Homebrew, Public Domain\n'
+    printf 'description: Freie Homebrew-, Public-Domain-, Demo-, Test- und Utility-Inhalte laden.\n'
+    printf 'x-romstore: true\n'
+    printf 'assets.boxFront: .konsolendocker/downloads.svg\n'
+  } >"$metadata_tmp"
+  chmod 0644 "$metadata_tmp"
+  mv -f "$metadata_tmp" "$metadata_path"
+}
+
+install_store_entry() {
+  local system="$1"
+  local target="$2"
+  local collection_name="$3"
+  local store_dir="$target/.konsolendocker"
+
+  install -d -m 0755 "$store_dir"
+  install -m 0644 "$store_asset" "$store_dir/downloads.svg"
+  : >"$store_dir/downloads.kdstore"
+  write_store_metadata "$system" "$target" "$collection_name"
+}
+
 mkdir -p \
   "$GAMES_DIR/bios" \
   "$GAMES_DIR/cache" \
@@ -43,12 +94,15 @@ mkdir -p \
 
 for system in "${systems[@]}"; do
   target="$GAMES_DIR/roms/$system"
+  source_metadata="$ROOT/metadata/$system.pegasus.txt"
+  collection_name="$(collection_name_for "$source_metadata")"
+
   mkdir -p "$target"
   if [[ "$FORCE" == true || ! -e "$target/metadata.pegasus.txt" ]]; then
-    install -m 0644 "$ROOT/metadata/$system.pegasus.txt" \
+    install -m 0644 "$source_metadata" \
       "$target/metadata.pegasus.txt"
   fi
+  install_store_entry "$system" "$target" "$collection_name"
 done
 
 printf 'Spielebibliothek bereit: %s\n' "$GAMES_DIR"
-

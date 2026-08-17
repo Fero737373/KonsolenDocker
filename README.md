@@ -78,9 +78,10 @@ Container nicht. `stop` beendet ihn, schaltet HDMI wieder ab und setzt DSI auf
 
 ## ROM Store in Pegasus
 
-1. Im Pegasus-Hauptbildschirm eine Konsole auswählen.
-2. Die Filter-/`Y`-Taste drücken. Der Download-Katalog öffnet sich innerhalb
-   dieser Konsole im bestehenden Pegasus-Grid-Design.
+1. Im Pegasus-Hauptbildschirm eine Konsole auswählen. Auch Konsolen ohne
+   installierte Spiele sind durch ihre native `Downloads`-Kachel sichtbar.
+2. Die `Downloads`-Kachel auswählen und `A` drücken. Alternativ öffnet `Y` den
+   Katalog direkt. Beides bleibt vollständig im bestehenden Pegasus-Grid-Design.
 3. Mit dem Steuerkreuz einen Inhalt wählen und mit `A` laden. `X` aktualisiert
    den Katalog live über die offiziellen APIs.
 4. Der Dialog zeigt Fortschritt, Datenmenge und Geschwindigkeit. `B` bricht
