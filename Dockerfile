@@ -26,6 +26,25 @@ RUN git clone --filter=blob:none https://github.com/mmatyas/pegasus-frontend.git
     && git -C /src/pegasus checkout "${PEGASUS_REF}" \
     && git -C /src/pegasus submodule update --init --recursive --depth 1
 
+COPY pegasus-theme/theme.qml /tmp/konsolendocker-theme/theme.qml
+COPY pegasus-theme/layer_romstore /tmp/konsolendocker-theme/layer_romstore
+
+RUN set -eu; \
+    install -m 0644 /tmp/konsolendocker-theme/theme.qml \
+        /src/pegasus/src/themes/pegasus-theme-grid/theme.qml; \
+    install -d /src/pegasus/src/themes/pegasus-theme-grid/layer_romstore; \
+    for file in \
+        CatalogEmptyState.qml \
+        CatalogGrid.qml \
+        CatalogInfoPanel.qml \
+        DownloadDialog.qml \
+        RomStoreLayer.qml; do \
+        install -m 0644 "/tmp/konsolendocker-theme/layer_romstore/${file}" \
+            "/src/pegasus/src/themes/pegasus-theme-grid/layer_romstore/${file}"; \
+        sed -i "/pegasus-theme-grid\/theme.qml/a\\        <file>pegasus-theme-grid/layer_romstore/${file}</file>" \
+            /src/pegasus/src/themes/themes.qrc; \
+    done
+
 RUN cmake \
         -S /src/pegasus \
         -B /build/pegasus \

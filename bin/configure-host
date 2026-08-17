@@ -70,8 +70,10 @@ pick_output() {
 
 requested_hdmi="${HDMI_OUTPUT:-$(existing_env_value HDMI_OUTPUT)}"
 requested_dsi="${DSI_OUTPUT:-$(existing_env_value DSI_OUTPUT)}"
+requested_hdmi_mode="${HDMI_MODE:-$(existing_env_value HDMI_MODE)}"
 hdmi_output="$(pick_output "$requested_hdmi" '^(HDMI|DP)')"
 dsi_output="$(pick_output "$requested_dsi" '^DSI')"
+hdmi_mode="${requested_hdmi_mode:-1920x1080}"
 
 if [[ -z "$hdmi_output" && "$ALLOW_MISSING_HDMI" == false ]]; then
   die "Kein verbundener HDMI-Ausgang erkannt."
@@ -100,6 +102,10 @@ input_gid="$(device_gid "$host_gid" /dev/input/event0 /dev/input/js0)"
 games_dir="${GAMES_DIR:-$(existing_env_value GAMES_DIR)}"
 games_dir="${games_dir:-/home/fero/Games}"
 [[ "$games_dir" = /* ]] || die "GAMES_DIR muss ein absoluter Pfad sein."
+thegamesdb_api_key="${THEGAMESDB_API_KEY:-$(existing_env_value THEGAMESDB_API_KEY)}"
+if [[ -n "$thegamesdb_api_key" && ! "$thegamesdb_api_key" =~ ^[A-Za-z0-9._-]+$ ]]; then
+  die "Der TheGamesDB API-Key enthält unzulässige Zeichen."
+fi
 
 mkdir -p "$ROOT/.runtime"
 tmp_env="$(mktemp "$ROOT/.runtime/env.XXXXXX")"
@@ -116,13 +122,17 @@ trap 'rm -f -- "$tmp_env"' EXIT
   printf 'XAUTHORITY=%s\n' "$xauthority_path"
   printf 'GAMES_DIR=%s\n' "$games_dir"
   printf 'HDMI_OUTPUT=%s\n' "$hdmi_output"
+  printf 'HDMI_MODE=%s\n' "$hdmi_mode"
   printf 'DSI_OUTPUT=%s\n' "$dsi_output"
+  printf 'THEGAMESDB_API_KEY=%s\n' "$thegamesdb_api_key"
 } >"$tmp_env"
 
 mv -- "$tmp_env" "$ROOT/.env"
+chmod 0600 "$ROOT/.env"
 trap - EXIT
 
 if [[ "$QUIET" == false ]]; then
   printf 'Host-Konfiguration gespeichert: %s\n' "$ROOT/.env"
-  printf 'DSI=%s, HDMI=%s, Games=%s\n' "$dsi_output" "${hdmi_output:-nicht verbunden}" "$games_dir"
+  printf 'DSI=%s, HDMI=%s (%s), Games=%s\n' \
+    "$dsi_output" "${hdmi_output:-nicht verbunden}" "$hdmi_mode" "$games_dir"
 fi

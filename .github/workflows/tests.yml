@@ -1,0 +1,21 @@
+name: Tests
+
+"on":
+  pull_request:
+  push:
+    branches:
+      - main
+      - agent/pegasus-v1
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run repository tests
+        run: ./bin/test

@@ -41,7 +41,13 @@ ls -l /dev/dri 2>&1 || true
 aplay -l 2>&1 || true
 ls -l /dev/input/by-id 2>&1 || true
 
+printf '%s\n' '=== BLUETOOTH ==='
+bluetoothctl --version 2>&1 || true
+bluetoothctl list 2>&1 || true
+bluetoothctl show 2>&1 || true
+bluetoothctl devices Paired 2>&1 || true
+rfkill list bluetooth 2>&1 || true
+
 printf '%s\n' '=== SPEICHER ==='
 lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINTS,MODEL 2>&1 || true
 df -h /home/fero/Games 2>&1 || true
-
