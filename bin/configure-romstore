@@ -3,6 +3,7 @@ set -euo pipefail
 umask 077
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+SECRET_FILE="$ROOT/.runtime/thegamesdb-api-key"
 QUIET=false
 
 if [[ "${1:-}" == "--quiet" ]]; then
@@ -17,11 +18,15 @@ fi
   exit 1
 }
 
-existing_key="$(
+legacy_key="$(
   awk -F= '$1 == "THEGAMESDB_API_KEY" { sub(/^[^=]*=/, ""); print; exit }' \
     "$ROOT/.env" 2>/dev/null || true
 )"
-api_key="${THEGAMESDB_API_KEY:-$existing_key}"
+stored_key=""
+if [[ -f "$SECRET_FILE" ]]; then
+  stored_key="$(<"$SECRET_FILE")"
+fi
+api_key="${THEGAMESDB_API_KEY:-${stored_key:-$legacy_key}}"
 
 if [[ -z "$api_key" && -t 0 && -t 1 ]]; then
   printf 'TheGamesDB API-Key für Spielcover (optional, Eingabe bleibt unsichtbar): '
@@ -29,24 +34,34 @@ if [[ -z "$api_key" && -t 0 && -t 1 ]]; then
   printf '\n'
 fi
 
-if [[ -n "$api_key" && ! "$api_key" =~ ^[A-Za-z0-9._-]+$ ]]; then
-  printf 'Fehler: Der TheGamesDB API-Key enthält unzulässige Zeichen.\n' >&2
+api_key="${api_key%$'\r'}"
+if [[ "$api_key" == *$'\n'* || "$api_key" == *$'\r'* ]]; then
+  printf 'Fehler: Der TheGamesDB API-Key darf keinen Zeilenumbruch enthalten.\n' >&2
+  exit 1
+fi
+if (( ${#api_key} > 4096 )); then
+  printf 'Fehler: Der TheGamesDB API-Key ist unerwartet lang.\n' >&2
   exit 1
 fi
 
 mkdir -p "$ROOT/.runtime"
+chmod 0700 "$ROOT/.runtime"
+tmp_secret="$(mktemp "$ROOT/.runtime/thegamesdb-api-key.XXXXXX")"
 tmp_env="$(mktemp "$ROOT/.runtime/romstore-env.XXXXXX")"
-trap 'rm -f -- "$tmp_env"' EXIT
+trap 'rm -f -- "$tmp_secret" "$tmp_env"' EXIT
 
+printf '%s' "$api_key" >"$tmp_secret"
+chmod 0600 "$tmp_secret"
 awk -F= '$1 != "THEGAMESDB_API_KEY"' "$ROOT/.env" >"$tmp_env"
-printf 'THEGAMESDB_API_KEY=%s\n' "$api_key" >>"$tmp_env"
+chmod 0600 "$tmp_env"
+mv -- "$tmp_secret" "$SECRET_FILE"
 mv -- "$tmp_env" "$ROOT/.env"
 chmod 0600 "$ROOT/.env"
 trap - EXIT
 
 if [[ "$QUIET" == false ]]; then
   if [[ -n "$api_key" ]]; then
-    printf 'TheGamesDB-Cover sind aktiviert. Der Key wurde nur lokal in .env gespeichert.\n'
+    printf 'TheGamesDB-Cover sind aktiviert. Der Key wurde nur lokal als Secret gespeichert.\n'
   else
     printf 'TheGamesDB ist nicht konfiguriert; Quellen-Cover und Platzhalter bleiben verfügbar.\n'
   fi

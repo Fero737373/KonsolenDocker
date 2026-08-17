@@ -57,6 +57,9 @@ class ProjectLayoutTests(unittest.TestCase):
         self.assertGreaterEqual(compose.count("no-new-privileges:true"), 2)
         self.assertIn("read_only: true", compose)
         self.assertIn("cap_drop:\n      - ALL", compose)
+        self.assertIn("THEGAMESDB_API_KEY_FILE: /run/secrets/thegamesdb_api_key", compose)
+        self.assertIn("file: ./.runtime/thegamesdb-api-key", compose)
+        self.assertNotIn('THEGAMESDB_API_KEY: "${', compose)
 
     def test_theme_keeps_the_native_pegasus_visual_language(self) -> None:
         theme_files = list((ROOT / "pegasus-theme").rglob("*.qml"))

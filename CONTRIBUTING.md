@@ -44,8 +44,8 @@ Dokumentation.
   Archive, Scraper und unklare Spiegel werden nicht integriert.
 - Netzwerkzugriff erfolgt nur über HTTPS und die zentrale exakte Host-Allowlist.
   Jede Weiterleitung wird erneut geprüft.
-- API-Keys gehören ausschließlich in die lokale `.env`; niemals in Logs,
-  Commits, Images, URLs oder Testdaten.
+- API-Keys gehören ausschließlich in eine lokale Secret-Datei; niemals in
+  `.env`, Logs, Commits, Images, URLs oder Testdaten.
 - Downloads erhalten Größenlimits. Wo die Quelle eine Prüfsumme liefert, ist
   deren Prüfung verpflichtend.
 - Installationen sind atomar: erst Inhalt, Cover und Receipt vollständig in

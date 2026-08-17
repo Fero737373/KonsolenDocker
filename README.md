@@ -46,8 +46,9 @@ wenn es dabei bereits verbunden ist; der Start prüft es in jedem Fall erneut.
 Es werden keine ROMs oder BIOS-Dateien mitgeliefert.
 
 Bei der Einrichtung fragt `setup` optional und verdeckt nach dem TheGamesDB-
-API-Key. Der Key wird nur lokal in `.env` mit Dateirechten `0600` gespeichert,
-nicht in ein Image eingebaut und nicht in Git aufgenommen. Ohne Key funktionieren
+API-Key. Der Key wird nur lokal in `.runtime/thegamesdb-api-key` mit
+Dateirechten `0600` gespeichert, als Docker-Secret eingebunden, nicht in ein
+Image eingebaut und nicht in Git aufgenommen. Ohne Key funktionieren
 Quellen-Cover und automatisch erzeugte Platzhalter weiterhin.
 
 Nach späteren Aktualisierungen genügt:
