@@ -13,7 +13,9 @@ services:
     user: "${HOST_UID:?Run ./bin/setup}:${HOST_GID:?Run ./bin/setup}"
     environment:
       GAMES_DIR: /games
-      THEGAMESDB_API_KEY: "${THEGAMESDB_API_KEY:-}"
+      THEGAMESDB_API_KEY_FILE: /run/secrets/thegamesdb_api_key
+    secrets:
+      - thegamesdb_api_key
     volumes:
       - "${GAMES_DIR:?Run ./bin/setup}:/games:rw"
     networks:
@@ -83,3 +85,7 @@ networks:
   console-internal:
     internal: true
   romstore-egress:
+
+secrets:
+  thegamesdb_api_key:
+    file: ./.runtime/thegamesdb-api-key

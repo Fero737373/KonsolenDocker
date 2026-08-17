@@ -195,13 +195,26 @@ class RomStoreServer(ThreadingHTTPServer):
         self.app = app
 
 
+def load_thegamesdb_api_key() -> str:
+    secret_path = os.environ.get("THEGAMESDB_API_KEY_FILE", "")
+    if not secret_path:
+        return os.environ.get("THEGAMESDB_API_KEY", "")
+    try:
+        api_key = Path(secret_path).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise SystemExit("TheGamesDB-Secret konnte nicht gelesen werden.") from exc
+    if "\n" in api_key or "\r" in api_key or len(api_key) > 4096:
+        raise SystemExit("TheGamesDB-Secret hat ein ungültiges Format.")
+    return api_key
+
+
 def main() -> None:
     games_dir = Path(os.environ.get("GAMES_DIR", "/games")).resolve()
     if games_dir != Path("/games") and os.environ.get("ROMSTORE_ALLOW_CUSTOM_GAMES_DIR") != "1":
         raise SystemExit("GAMES_DIR außerhalb des Container-Mounts ist nicht erlaubt.")
     app = RomStoreApp(
         games_dir,
-        thegamesdb_api_key=os.environ.get("THEGAMESDB_API_KEY", ""),
+        thegamesdb_api_key=load_thegamesdb_api_key(),
     )
     host = os.environ.get("ROMSTORE_BIND", "0.0.0.0")
     port = int(os.environ.get("ROMSTORE_PORT", "8080"))

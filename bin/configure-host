@@ -102,10 +102,6 @@ input_gid="$(device_gid "$host_gid" /dev/input/event0 /dev/input/js0)"
 games_dir="${GAMES_DIR:-$(existing_env_value GAMES_DIR)}"
 games_dir="${games_dir:-/home/fero/Games}"
 [[ "$games_dir" = /* ]] || die "GAMES_DIR muss ein absoluter Pfad sein."
-thegamesdb_api_key="${THEGAMESDB_API_KEY:-$(existing_env_value THEGAMESDB_API_KEY)}"
-if [[ -n "$thegamesdb_api_key" && ! "$thegamesdb_api_key" =~ ^[A-Za-z0-9._-]+$ ]]; then
-  die "Der TheGamesDB API-Key enthält unzulässige Zeichen."
-fi
 
 mkdir -p "$ROOT/.runtime"
 tmp_env="$(mktemp "$ROOT/.runtime/env.XXXXXX")"
@@ -124,7 +120,6 @@ trap 'rm -f -- "$tmp_env"' EXIT
   printf 'HDMI_OUTPUT=%s\n' "$hdmi_output"
   printf 'HDMI_MODE=%s\n' "$hdmi_mode"
   printf 'DSI_OUTPUT=%s\n' "$dsi_output"
-  printf 'THEGAMESDB_API_KEY=%s\n' "$thegamesdb_api_key"
 } >"$tmp_env"
 
 mv -- "$tmp_env" "$ROOT/.env"
