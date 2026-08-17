@@ -2,6 +2,56 @@
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+CONSOLE_CONTAINER="konsolendocker-pegasus"
+ROMSTORE_CONTAINER="konsolendocker-romstore"
+
+compose() {
+  docker compose \
+    --project-directory "$ROOT" \
+    --env-file "$ROOT/.env" \
+    -f "$ROOT/docker-compose.yml" \
+    "$@"
+}
+
+container_is_running() {
+  [[ "$(docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null || true)" == "true" ]]
+}
+
+wait_for_romstore() {
+  local attempt status
+  for ((attempt = 0; attempt < 30; attempt++)); do
+    status="$(
+      docker inspect \
+        -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' \
+        "$ROMSTORE_CONTAINER" 2>/dev/null || true
+    )"
+    case "$status" in
+      healthy)
+        return 0
+        ;;
+      unhealthy)
+        return 1
+        ;;
+    esac
+    sleep 1
+  done
+  return 1
+}
+
+catalog_item_count() {
+  compose exec -T romstore python -c '
+import json
+import urllib.request
+
+url = "http://127.0.0.1:8080/api/v1/catalog?system=nes"
+with urllib.request.urlopen(url, timeout=10) as response:
+    payload = json.load(response)
+count = payload.get("count")
+if not isinstance(count, int) or count < 1:
+    raise SystemExit("Der NES-Katalog ist leer.")
+print(count)
+'
+}
 
 command -v docker >/dev/null || {
   printf 'Fehler: Docker ist nicht installiert.\n' >&2
@@ -11,6 +61,11 @@ docker compose version >/dev/null 2>&1 || {
   printf 'Fehler: Das Docker-Compose-Plugin fehlt.\n' >&2
   exit 1
 }
+
+console_was_running=false
+if container_is_running "$CONSOLE_CONTAINER"; then
+  console_was_running=true
+fi
 
 if [[ -f "$ROOT/.env" ]]; then
   "$ROOT/bin/configure-romstore"
@@ -25,10 +80,44 @@ games_dir="$(
 )"
 GAMES_DIR="$games_dir" "$ROOT/bin/init-games"
 
-docker compose \
-  --project-directory "$ROOT" \
-  --env-file "$ROOT/.env" \
-  -f "$ROOT/docker-compose.yml" \
-  build --pull
+compose build --pull
 
-printf '\nFertig. Start mit: %s/bin/console-control start\n' "$ROOT"
+temporary_store=false
+cleanup_temporary_store() {
+  if [[ "$temporary_store" == true ]]; then
+    compose down --remove-orphans >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup_temporary_store EXIT
+
+if [[ "$console_was_running" == true ]]; then
+  compose up -d --no-build --force-recreate
+else
+  temporary_store=true
+  compose up -d --no-build romstore
+fi
+
+if ! wait_for_romstore; then
+  printf 'Fehler: Der ROM-Store wurde nach dem Build nicht gesund.\n' >&2
+  compose logs --tail 100 romstore >&2 || true
+  exit 1
+fi
+
+if ! item_count="$(catalog_item_count)"; then
+  printf 'Fehler: Der ROM-Katalog konnte nicht geprüft werden.\n' >&2
+  compose logs --tail 100 romstore >&2 || true
+  exit 1
+fi
+
+if [[ "$temporary_store" == true ]]; then
+  compose down --remove-orphans >/dev/null
+  temporary_store=false
+fi
+trap - EXIT
+
+printf '\nROM-Store geprüft: %s NES-Inhalte verfügbar.\n' "$item_count"
+if [[ "$console_was_running" == true ]]; then
+  printf 'Die laufende Konsole wurde mit dem neuen Image neu gestartet.\n'
+else
+  printf 'Fertig. Start mit: %s/bin/console-control start\n' "$ROOT"
+fi

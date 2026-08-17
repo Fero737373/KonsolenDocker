@@ -80,6 +80,14 @@ class ProjectLayoutTests(unittest.TestCase):
             with self.subTest(component=component.name):
                 self.assertIn(component.name, dockerfile)
 
+    def test_setup_recreates_running_ui_and_verifies_the_catalog(self) -> None:
+        setup = (ROOT / "bin" / "setup").read_text()
+
+        self.assertIn("--force-recreate", setup)
+        self.assertIn("wait_for_romstore", setup)
+        self.assertIn("/api/v1/catalog?system=nes", setup)
+        self.assertIn("ROM-Store geprüft", setup)
+
     def test_sources_are_pinned(self) -> None:
         dockerfile = (ROOT / "Dockerfile").read_text()
         manifest = (ROOT / "romstore" / "libretro_manifest.json").read_text()
